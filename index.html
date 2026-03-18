@@ -2,21 +2,31 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>Hydroneer風 採掘シミュレーション</title>
+<title>Hydroneer風 COMPLETE 2D</title>
 <style>
 body{margin:0;font-family:sans-serif;background:#1e2a33;color:#fff}
-#ui{position:fixed;top:0;left:0;padding:10px;background:rgba(0,0,0,0.5)}
+#ui{position:fixed;top:0;left:0;padding:10px;background:rgba(0,0,0,0.65);z-index:10}
 canvas{display:block}
 button{margin:2px}
+.bar{width:160px;height:10px;background:#333;border-radius:6px;overflow:hidden;margin-top:4px}
+.fill{height:100%;width:0;background:#00ffaa}
 </style>
 </head>
 <body>
 
 <div id="ui">
-<button onclick="tool='dig'">⛏ 掘る</button>
-<button onclick="tool='pan'">🪣 ふるい</button>
-<button onclick="tool='sell'">💰 売る</button>
-<div>所持金: <span id="money">0</span></div>
+<button onclick="tool='dig'">⛏</button>
+<button onclick="tool='pan'">🪣</button>
+<button onclick="tool='sell'">💰</button>
+<button onclick="tool='drill'">⚙ドリル</button>
+<button onclick="tool='belt'">➡コンベア</button>
+<button onclick="tool='filter'">🧰フィルタ</button>
+<button onclick="tool='smelter'">🔥精錬</button>
+<button onclick="tool='water'">💧水源</button>
+
+<div>💰:<span id="money">0</span></div>
+<div>水圧:<span id="water">0</span></div>
+<div class="bar"><div id="bar" class="fill"></div></div>
 </div>
 
 <canvas id="game"></canvas>
@@ -24,71 +34,134 @@ button{margin:2px}
 <script>
 const canvas=document.getElementById("game");
 const ctx=canvas.getContext("2d");
-canvas.width=window.innerWidth;
-canvas.height=window.innerHeight;
+canvas.width=innerWidth;
+canvas.height=innerHeight;
 
-let gridSize=20;
-let cols=Math.floor(canvas.width/gridSize);
-let rows=Math.floor(canvas.height/gridSize);
+let size=20;
+let cols=Math.floor(canvas.width/size);
+let rows=Math.floor(canvas.height/size);
+
+let types=["dirt","gold","iron","emerald","ruby","sapphire","cloutium","corestone"];
+
+function gen(y){
+ let d=y/rows;
+ if(Math.random()<d*0.03) return "corestone";
+ if(Math.random()<d*0.05) return "cloutium";
+ if(Math.random()<d*0.08) return "sapphire";
+ if(Math.random()<d*0.08) return "ruby";
+ if(Math.random()<d*0.1) return "emerald";
+ if(Math.random()<d*0.15) return "iron";
+ if(Math.random()<d*0.2) return "gold";
+ return "dirt";
+}
 
 let world=[];
 for(let y=0;y<rows;y++){
- let row=[];
- for(let x=0;x<cols;x++){
-  let depth=y;
-  let type="dirt";
-  if(Math.random()<depth/rows*0.2) type="gold";
-  row.push({type:type});
- }
- world.push(row);
+ let r=[];
+ for(let x=0;x<cols;x++) r.push({type:gen(y)});
+ world.push(r);
 }
 
-let tool="dig";
+let inv={}; types.forEach(t=>inv[t]=0);
 let money=0;
-let inventory={dirt:0,gold:0};
+let tool="dig";
+let drills=[],belts=[],filters=[],smelters=[],waters=[];
+let waterPower=0;
 
-canvas.addEventListener("click",e=>{
- let x=Math.floor(e.clientX/gridSize);
- let y=Math.floor(e.clientY/gridSize);
- if(!world[y]||!world[y][x]) return;
-
- let cell=world[y][x];
+canvas.onclick=e=>{
+ let x=Math.floor(e.clientX/size);
+ let y=Math.floor(e.clientY/size);
+ let c=world[y]?.[x];
+ if(!c) return;
 
  if(tool==="dig"){
-  inventory[cell.type]++;
-  world[y][x]={type:"air"};
+  inv[c.type]++; world[y][x]={type:"air"};
  }
 
  if(tool==="pan"){
-  if(inventory.dirt>=3){
-    inventory.dirt-=3;
-    if(Math.random()<0.3) inventory.gold++;
-  }
+  if(inv.dirt>=3 && waterPower>0){inv.dirt-=3; if(Math.random()<0.5) inv.gold++;}
  }
 
  if(tool==="sell"){
-  money+=inventory.gold*10;
-  inventory.gold=0;
+  money+=inv.gold*10+inv.iron*8+inv.cloutium*30;
+  inv.gold=inv.iron=inv.cloutium=0;
  }
 
+ if(tool==="drill") drills.push({x,y,t:0});
+ if(tool==="belt") belts.push({x,y,dir:1});
+ if(tool==="filter") filters.push({x,y});
+ if(tool==="smelter") smelters.push({x,y,prog:0});
+ if(tool==="water") waters.push({x,y});
+
  update();
-});
+};
+
+// ===== システム =====
+setInterval(()=>{
+ waterPower = waters.length;
+
+ drills.forEach(d=>{
+  d.t++;
+  if(d.t>20 && waterPower>0){
+   let c=world[d.y]?.[d.x];
+   if(c && c.type!="air"){
+    inv[c.type]++;
+    world[d.y][d.x]={type:"air"};
+   }
+   d.t=0;
+  }
+ });
+
+ // 精錬
+ smelters.forEach(s=>{
+  if(inv.gold>0){
+    s.prog+=0.05;
+    document.getElementById("bar").style.width=(s.prog*100)+"%";
+    if(s.prog>=1){
+      inv.gold--;
+      money+=15;
+      s.prog=0;
+    }
+  }
+ });
+
+ update();
+},100);
 
 function update(){
  document.getElementById("money").textContent=money;
+ document.getElementById("water").textContent=waterPower;
+}
+
+function color(t){
+ return {
+  dirt:"#6b4f2a",gold:"#ffd700",iron:"#aaa",
+  emerald:"#0f8",ruby:"#f04",sapphire:"#06f",
+  cloutium:"#88f",corestone:"#f80",air:"#222"
+ }[t];
 }
 
 function draw(){
  ctx.clearRect(0,0,canvas.width,canvas.height);
+
  for(let y=0;y<rows;y++){
   for(let x=0;x<cols;x++){
-   let cell=world[y][x];
-   if(cell.type==="dirt") ctx.fillStyle="#6b4f2a";
-   else if(cell.type==="gold") ctx.fillStyle="#ffd700";
-   else ctx.fillStyle="#222";
-   ctx.fillRect(x*gridSize,y*gridSize,gridSize,gridSize);
+   ctx.fillStyle=color(world[y][x].type);
+   ctx.fillRect(x*size,y*size,size,size);
   }
  }
+
+ ctx.fillStyle="cyan";
+ drills.forEach(d=>ctx.fillRect(d.x*size,d.y*size,size,size));
+ ctx.fillStyle="yellow";
+ belts.forEach(b=>ctx.fillRect(b.x*size,b.y*size,size,size));
+ ctx.fillStyle="purple";
+ filters.forEach(f=>ctx.fillRect(f.x*size,f.y*size,size,size));
+ ctx.fillStyle="red";
+ smelters.forEach(s=>ctx.fillRect(s.x*size,s.y*size,size,size));
+ ctx.fillStyle="blue";
+ waters.forEach(w=>ctx.fillRect(w.x*size,w.y*size,size,size));
+
  requestAnimationFrame(draw);
 }
 
