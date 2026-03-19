@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>Hydroneer風 2ゾーンゲーム</title>
+<title>Hydroneer風 発展ゲーム+</title>
 
 <style>
 body{
@@ -50,39 +50,75 @@ button{
     cursor:pointer;
 }
 
+.locked{ opacity:0.3; }
+
 </style>
 </head>
 
 <body>
 
 <div id="top">
-<button onclick="switchZone(1)">⛏ 採掘ゾーン</button>
-<button onclick="switchZone(2)">🪣 洗浄ゾーン</button>
+<button onclick="switchZone(1)">⛏ 採掘</button>
+<button onclick="switchZone(2)">🪣 洗浄</button>
+<button onclick="switchZone(3)">🏭 加工</button>
+<button onclick="switchZone(4)">💰 売却</button>
 </div>
 
-<!-- ===== 採掘ゾーン ===== -->
+<!-- 採掘 -->
 <div id="zone1" class="zone active">
 <h2>採掘ゾーン</h2>
-<p>土の塊: <span id="dirt">0</span></p>
+土: <span id="dirt">0</span>
 
 <div id="mine" class="grid"></div>
-
-<button onclick="placeDrill()">⚙ ドリル設置（自動採掘）</button>
+<button onclick="placeDrill()">⚙ ドリル設置（$50）</button>
 </div>
 
-<!-- ===== 洗浄ゾーン ===== -->
+<!-- 洗浄 -->
 <div id="zone2" class="zone">
 <h2>洗浄ゾーン</h2>
-
-<p>土の塊: <span id="dirt2">0</span></p>
+土: <span id="dirt2"></span>
 
 <button onclick="pan()">🪣 パンニング（土3）</button>
 
 <h3>鉱石</h3>
-金: <span id="gold">0</span><br>
-鉄: <span id="iron">0</span><br>
-宝石: <span id="gem">0</span><br>
+金: <span id="gold"></span><br>
+鉄: <span id="iron"></span><br>
+宝石: <span id="gem"></span>
+</div>
 
+<!-- 加工 -->
+<div id="zone3" class="zone">
+<h2>加工ゾーン</h2>
+
+<button onclick="unlockSmelter()">精錬解放（鉄10 + $100）</button>
+
+<div id="smelterArea" class="locked">
+<button onclick="makeIngot()">延べ棒（金2 or 鉄2）</button>
+</div>
+
+<button onclick="unlockWeapon()">武器解放（延べ棒5 + $200）</button>
+
+<div id="weaponArea" class="locked">
+<button onclick="makeWeapon()">武器作成（延べ棒3）</button>
+</div>
+
+<br><br>
+延べ棒: <span id="ingot">0</span><br>
+武器: <span id="weapon">0</span>
+
+</div>
+
+<!-- 売却 -->
+<div id="zone4" class="zone">
+<h2>売却</h2>
+
+<button onclick="sell('gold')">金 売る（×10）</button>
+<button onclick="sell('iron')">鉄 売る（×8）</button>
+<button onclick="sell('gem')">宝石 売る（×20）</button>
+<button onclick="sell('ingot')">延べ棒（×30）</button>
+<button onclick="sell('weapon')">武器（×100）</button>
+
+<h3>💰: <span id="money"></span></h3>
 </div>
 
 <script>
@@ -90,55 +126,57 @@ button{
 // ===== データ =====
 let dirt=0;
 let gold=0, iron=0, gem=0;
+let ingot=0, weapon=0;
+let money=0;
 
-// ===== ゾーン切り替え =====
+let drills=[];
+let smelterUnlocked=false;
+let weaponUnlocked=false;
+
+// ===== ゾーン切替 =====
 function switchZone(n){
-    document.getElementById("zone1").classList.remove("active");
-    document.getElementById("zone2").classList.remove("active");
+    for(let i=1;i<=4;i++){
+        document.getElementById("zone"+i).classList.remove("active");
+    }
     document.getElementById("zone"+n).classList.add("active");
 }
 
-// ===== 採掘グリッド =====
+// ===== 採掘 =====
 let mine=document.getElementById("mine");
-let cells=[];
 
 for(let i=0;i<200;i++){
     let div=document.createElement("div");
     div.className="cell";
-
     div.onclick=()=>{
         dirt++;
         update();
     };
-
     mine.appendChild(div);
-    cells.push(div);
 }
 
-// ===== ドリル =====
-let drills=[];
-
+// ドリル
 function placeDrill(){
-    drills.push({timer:0});
+    if(money>=50){
+        money-=50;
+        drills.push({t:0});
+    }
 }
 
-// 自動採掘
 setInterval(()=>{
     drills.forEach(d=>{
-        d.timer++;
-        if(d.timer>=30){ // 約3秒
+        d.t++;
+        if(d.t>=30){
             dirt++;
-            d.timer=0;
+            d.t=0;
         }
     });
     update();
 },100);
 
-// ===== パンニング =====
+// ===== 洗浄 =====
 function pan(){
     if(dirt>=3){
         dirt-=3;
-
         let r=Math.random();
         if(r<0.5) gold++;
         else if(r<0.8) iron++;
@@ -147,13 +185,65 @@ function pan(){
     update();
 }
 
+// ===== 解放 =====
+function unlockSmelter(){
+    if(iron>=10 && money>=100){
+        iron-=10;
+        money-=100;
+        smelterUnlocked=true;
+        document.getElementById("smelterArea").classList.remove("locked");
+    }
+}
+
+function unlockWeapon(){
+    if(ingot>=5 && money>=200){
+        ingot-=5;
+        money-=200;
+        weaponUnlocked=true;
+        document.getElementById("weaponArea").classList.remove("locked");
+    }
+}
+
+// ===== 加工 =====
+function makeIngot(){
+    if(smelterUnlocked){
+        if(gold>=2){ gold-=2; ingot++; }
+        else if(iron>=2){ iron-=2; ingot++; }
+    }
+    update();
+}
+
+function makeWeapon(){
+    if(weaponUnlocked && ingot>=3){
+        ingot-=3;
+        weapon++;
+    }
+    update();
+}
+
+// ===== 売却 =====
+function sell(type){
+    if(type==="gold" && gold>0){ money+=gold*10; gold=0; }
+    if(type==="iron" && iron>0){ money+=iron*8; iron=0; }
+    if(type==="gem" && gem>0){ money+=gem*20; gem=0; }
+    if(type==="ingot" && ingot>0){ money+=ingot*30; ingot=0; }
+    if(type==="weapon" && weapon>0){ money+=weapon*100; weapon=0; }
+    update();
+}
+
 // ===== 更新 =====
 function update(){
     document.getElementById("dirt").textContent=dirt;
     document.getElementById("dirt2").textContent=dirt;
+
     document.getElementById("gold").textContent=gold;
     document.getElementById("iron").textContent=iron;
     document.getElementById("gem").textContent=gem;
+
+    document.getElementById("ingot").textContent=ingot;
+    document.getElementById("weapon").textContent=weapon;
+
+    document.getElementById("money").textContent=money;
 }
 
 update();
