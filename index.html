@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>Hydroneer風 発展ゲーム++</title>
+<title>Hydroneer風 完全修正版</title>
 
 <style>
 body{margin:0;font-family:sans-serif;background:#1e2a33;color:white;}
@@ -69,76 +69,84 @@ button{padding:8px;border:none;border-radius:6px;cursor:pointer;}
 サファ:<span id="sapphire"></span>
 ルビー:<span id="ruby"></span>
 オニキス:<span id="onyx"></span>
-
 </div>
 
 <!-- 売却 -->
 <div id="zone4" class="zone">
 <h2>売却</h2>
-
 <button onclick="sellAll()">全部売る</button>
-
 💰:<span id="money"></span>
 </div>
 
 <script>
 
-// ===== データ =====
-let dirt=0;
-let money=0;
+// ===== データ（ここが超重要）=====
+let data = {
+    dirt:0,
+    iron:0,
+    gold:0,
+    clout:0,
+    core:0,
+    emeraldOre:0,
+    sapphireOre:0,
+    rubyOre:0,
+    onyxOre:0,
+    emerald:0,
+    sapphire:0,
+    ruby:0,
+    onyx:0,
+    money:0
+};
 
-// 金属
-let iron=0, gold=0, clout=0, core=0;
+let gemUnlocked = false;
 
-// 宝石原石
-let emeraldOre=0, sapphireOre=0, rubyOre=0, onyxOre=0;
-
-// 宝石
-let emerald=0, sapphire=0, ruby=0, onyx=0;
-
-let gemUnlocked=false;
-
-// ===== ゾーン =====
+// ===== ゾーン切替 =====
 function switchZone(n){
-    for(let i=1;i<=4;i++) document.getElementById("zone"+i).classList.remove("active");
+    for(let i=1;i<=4;i++){
+        document.getElementById("zone"+i).classList.remove("active");
+    }
     document.getElementById("zone"+n).classList.add("active");
 }
 
 // ===== 採掘 =====
 let mine=document.getElementById("mine");
+
 for(let i=0;i<200;i++){
     let div=document.createElement("div");
     div.className="cell";
-    div.onclick=()=>{ dirt++; update(); };
+    div.onclick=()=>{
+        data.dirt++;
+        update();
+    };
     mine.appendChild(div);
 }
 
 // ===== 洗浄 =====
 function pan(){
-    if(dirt>=3){
-        dirt-=3;
+    if(data.dirt>=3){
+        data.dirt-=3;
 
-        // 金属（レア順）
+        // 金属
         let r=Math.random();
-        if(r<0.01) core++;
-        else if(r<0.05) clout++;
-        else if(r<0.2) gold++;
-        else iron++;
+        if(r<0.01) data.core++;
+        else if(r<0.05) data.clout++;
+        else if(r<0.2) data.gold++;
+        else data.iron++;
 
-        // 宝石（独立抽選）
+        // 宝石（独立）
         let g=Math.random();
-        if(g<0.02) onyxOre++;
-        else if(g<0.05) rubyOre++;
-        else if(g<0.1) sapphireOre++;
-        else if(g<0.2) emeraldOre++;
+        if(g<0.02) data.onyxOre++;
+        else if(g<0.05) data.rubyOre++;
+        else if(g<0.1) data.sapphireOre++;
+        else if(g<0.2) data.emeraldOre++;
     }
     update();
 }
 
 // ===== 解放 =====
 function unlockGem(){
-    if(money>=100){
-        money-=100;
+    if(data.money>=100){
+        data.money-=100;
         gemUnlocked=true;
         document.getElementById("gemArea").classList.remove("locked");
     }
@@ -148,43 +156,55 @@ function unlockGem(){
 function makeGem(type){
     if(!gemUnlocked) return;
 
-    if(type==="emerald" && emeraldOre>=1){ emeraldOre--; emerald++; }
-    if(type==="sapphire" && sapphireOre>=1){ sapphireOre--; sapphire++; }
-    if(type==="ruby" && rubyOre>=1){ rubyOre--; ruby++; }
-    if(type==="onyx" && onyxOre>=1){ onyxOre--; onyx++; }
+    if(type==="emerald" && data.emeraldOre>=1){
+        data.emeraldOre--; data.emerald++;
+    }
+    if(type==="sapphire" && data.sapphireOre>=1){
+        data.sapphireOre--; data.sapphire++;
+    }
+    if(type==="ruby" && data.rubyOre>=1){
+        data.rubyOre--; data.ruby++;
+    }
+    if(type==="onyx" && data.onyxOre>=1){
+        data.onyxOre--; data.onyx++;
+    }
 
     update();
 }
 
 // ===== 売却 =====
 function sellAll(){
-    money += iron*5;
-    money += gold*10;
-    money += clout*25;
-    money += core*50;
+    data.money += data.iron*5;
+    data.money += data.gold*10;
+    data.money += data.clout*25;
+    data.money += data.core*50;
 
-    money += emerald*15;
-    money += sapphire*25;
-    money += ruby*40;
-    money += onyx*70;
+    data.money += data.emerald*15;
+    data.money += data.sapphire*25;
+    data.money += data.ruby*40;
+    data.money += data.onyx*70;
 
-    iron=gold=clout=core=0;
-    emerald=sapphire=ruby=onyx=0;
+    data.iron=0;
+    data.gold=0;
+    data.clout=0;
+    data.core=0;
+    data.emerald=0;
+    data.sapphire=0;
+    data.ruby=0;
+    data.onyx=0;
 
     update();
 }
 
-// ===== 更新 =====
+// ===== 更新（完全修正版）=====
 function update(){
-    let ids=["dirt","dirt2","iron","gold","clout","core",
-    "emeraldOre","sapphireOre","rubyOre","onyxOre",
-    "emerald","sapphire","ruby","onyx","money"];
-
-    ids.forEach(id=>{
-        if(window[id]!==undefined){
-            document.getElementById(id).textContent=window[id];
+    for(let key in data){
+        let el=document.getElementById(key);
+        if(el){
+            el.textContent=data[key];
         }
-    });
+    }
+    document.getElementById("dirt2").textContent=data.dirt;
 }
 
 update();
