@@ -2,56 +2,17 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>Hydroneer風 発展ゲーム+</title>
+<title>Hydroneer風 発展ゲーム++</title>
 
 <style>
-body{
-    margin:0;
-    font-family:sans-serif;
-    background:#1e2a33;
-    color:white;
-}
-
-#top{
-    position:fixed;
-    width:100%;
-    background:#0008;
-    padding:10px;
-    display:flex;
-    gap:10px;
-}
-
-button{
-    padding:8px;
-    border:none;
-    border-radius:6px;
-    cursor:pointer;
-}
-
-.zone{
-    display:none;
-    padding-top:60px;
-    text-align:center;
-}
-
-.active{ display:block; }
-
-.grid{
-    display:grid;
-    grid-template-columns:repeat(20,20px);
-    gap:2px;
-    justify-content:center;
-    margin-top:20px;
-}
-
-.cell{
-    width:20px;height:20px;
-    background:#6b4f2a;
-    cursor:pointer;
-}
-
-.locked{ opacity:0.3; }
-
+body{margin:0;font-family:sans-serif;background:#1e2a33;color:white;}
+#top{position:fixed;width:100%;background:#0008;padding:10px;display:flex;gap:10px;}
+button{padding:8px;border:none;border-radius:6px;cursor:pointer;}
+.zone{display:none;padding-top:60px;text-align:center;}
+.active{display:block;}
+.grid{display:grid;grid-template-columns:repeat(20,20px);gap:2px;justify-content:center;margin-top:20px;}
+.cell{width:20px;height:20px;background:#6b4f2a;cursor:pointer;}
+.locked{opacity:0.3;}
 </style>
 </head>
 
@@ -66,45 +27,48 @@ button{
 
 <!-- 採掘 -->
 <div id="zone1" class="zone active">
-<h2>採掘ゾーン</h2>
-土: <span id="dirt">0</span>
-
+<h2>採掘</h2>
+土: <span id="dirt"></span>
 <div id="mine" class="grid"></div>
-<button onclick="placeDrill()">⚙ ドリル設置（$50）</button>
 </div>
 
 <!-- 洗浄 -->
 <div id="zone2" class="zone">
-<h2>洗浄ゾーン</h2>
+<h2>洗浄</h2>
 土: <span id="dirt2"></span>
+<button onclick="pan()">パンニング（土3）</button>
 
-<button onclick="pan()">🪣 パンニング（土3）</button>
+<h3>金属</h3>
+鉄:<span id="iron"></span>
+金:<span id="gold"></span>
+クロチウム:<span id="clout"></span>
+コアストーン:<span id="core"></span>
 
-<h3>鉱石</h3>
-金: <span id="gold"></span><br>
-鉄: <span id="iron"></span><br>
-宝石: <span id="gem"></span>
+<h3>宝石原石</h3>
+エメ:<span id="emeraldOre"></span>
+サファ:<span id="sapphireOre"></span>
+ルビー:<span id="rubyOre"></span>
+オニキス:<span id="onyxOre"></span>
 </div>
 
 <!-- 加工 -->
 <div id="zone3" class="zone">
-<h2>加工ゾーン</h2>
+<h2>加工</h2>
 
-<button onclick="unlockSmelter()">精錬解放（鉄10 + $100）</button>
+<button onclick="unlockGem()">宝石加工解放（$100）</button>
 
-<div id="smelterArea" class="locked">
-<button onclick="makeIngot()">延べ棒（金2 or 鉄2）</button>
+<div id="gemArea" class="locked">
+<button onclick="makeGem('emerald')">エメラルド</button>
+<button onclick="makeGem('sapphire')">サファイア</button>
+<button onclick="makeGem('ruby')">ルビー</button>
+<button onclick="makeGem('onyx')">オニキス</button>
 </div>
 
-<button onclick="unlockWeapon()">武器解放（延べ棒5 + $200）</button>
-
-<div id="weaponArea" class="locked">
-<button onclick="makeWeapon()">武器作成（延べ棒3）</button>
-</div>
-
-<br><br>
-延べ棒: <span id="ingot">0</span><br>
-武器: <span id="weapon">0</span>
+<h3>宝石</h3>
+エメ:<span id="emerald"></span>
+サファ:<span id="sapphire"></span>
+ルビー:<span id="ruby"></span>
+オニキス:<span id="onyx"></span>
 
 </div>
 
@@ -112,138 +76,115 @@ button{
 <div id="zone4" class="zone">
 <h2>売却</h2>
 
-<button onclick="sell('gold')">金 売る（×10）</button>
-<button onclick="sell('iron')">鉄 売る（×8）</button>
-<button onclick="sell('gem')">宝石 売る（×20）</button>
-<button onclick="sell('ingot')">延べ棒（×30）</button>
-<button onclick="sell('weapon')">武器（×100）</button>
+<button onclick="sellAll()">全部売る</button>
 
-<h3>💰: <span id="money"></span></h3>
+💰:<span id="money"></span>
 </div>
 
 <script>
 
 // ===== データ =====
 let dirt=0;
-let gold=0, iron=0, gem=0;
-let ingot=0, weapon=0;
 let money=0;
 
-let drills=[];
-let smelterUnlocked=false;
-let weaponUnlocked=false;
+// 金属
+let iron=0, gold=0, clout=0, core=0;
 
-// ===== ゾーン切替 =====
+// 宝石原石
+let emeraldOre=0, sapphireOre=0, rubyOre=0, onyxOre=0;
+
+// 宝石
+let emerald=0, sapphire=0, ruby=0, onyx=0;
+
+let gemUnlocked=false;
+
+// ===== ゾーン =====
 function switchZone(n){
-    for(let i=1;i<=4;i++){
-        document.getElementById("zone"+i).classList.remove("active");
-    }
+    for(let i=1;i<=4;i++) document.getElementById("zone"+i).classList.remove("active");
     document.getElementById("zone"+n).classList.add("active");
 }
 
 // ===== 採掘 =====
 let mine=document.getElementById("mine");
-
 for(let i=0;i<200;i++){
     let div=document.createElement("div");
     div.className="cell";
-    div.onclick=()=>{
-        dirt++;
-        update();
-    };
+    div.onclick=()=>{ dirt++; update(); };
     mine.appendChild(div);
 }
-
-// ドリル
-function placeDrill(){
-    if(money>=50){
-        money-=50;
-        drills.push({t:0});
-    }
-}
-
-setInterval(()=>{
-    drills.forEach(d=>{
-        d.t++;
-        if(d.t>=30){
-            dirt++;
-            d.t=0;
-        }
-    });
-    update();
-},100);
 
 // ===== 洗浄 =====
 function pan(){
     if(dirt>=3){
         dirt-=3;
+
+        // 金属（レア順）
         let r=Math.random();
-        if(r<0.5) gold++;
-        else if(r<0.8) iron++;
-        else gem++;
+        if(r<0.01) core++;
+        else if(r<0.05) clout++;
+        else if(r<0.2) gold++;
+        else iron++;
+
+        // 宝石（独立抽選）
+        let g=Math.random();
+        if(g<0.02) onyxOre++;
+        else if(g<0.05) rubyOre++;
+        else if(g<0.1) sapphireOre++;
+        else if(g<0.2) emeraldOre++;
     }
     update();
 }
 
 // ===== 解放 =====
-function unlockSmelter(){
-    if(iron>=10 && money>=100){
-        iron-=10;
+function unlockGem(){
+    if(money>=100){
         money-=100;
-        smelterUnlocked=true;
-        document.getElementById("smelterArea").classList.remove("locked");
+        gemUnlocked=true;
+        document.getElementById("gemArea").classList.remove("locked");
     }
 }
 
-function unlockWeapon(){
-    if(ingot>=5 && money>=200){
-        ingot-=5;
-        money-=200;
-        weaponUnlocked=true;
-        document.getElementById("weaponArea").classList.remove("locked");
-    }
-}
+// ===== 宝石加工 =====
+function makeGem(type){
+    if(!gemUnlocked) return;
 
-// ===== 加工 =====
-function makeIngot(){
-    if(smelterUnlocked){
-        if(gold>=2){ gold-=2; ingot++; }
-        else if(iron>=2){ iron-=2; ingot++; }
-    }
-    update();
-}
+    if(type==="emerald" && emeraldOre>=1){ emeraldOre--; emerald++; }
+    if(type==="sapphire" && sapphireOre>=1){ sapphireOre--; sapphire++; }
+    if(type==="ruby" && rubyOre>=1){ rubyOre--; ruby++; }
+    if(type==="onyx" && onyxOre>=1){ onyxOre--; onyx++; }
 
-function makeWeapon(){
-    if(weaponUnlocked && ingot>=3){
-        ingot-=3;
-        weapon++;
-    }
     update();
 }
 
 // ===== 売却 =====
-function sell(type){
-    if(type==="gold" && gold>0){ money+=gold*10; gold=0; }
-    if(type==="iron" && iron>0){ money+=iron*8; iron=0; }
-    if(type==="gem" && gem>0){ money+=gem*20; gem=0; }
-    if(type==="ingot" && ingot>0){ money+=ingot*30; ingot=0; }
-    if(type==="weapon" && weapon>0){ money+=weapon*100; weapon=0; }
+function sellAll(){
+    money += iron*5;
+    money += gold*10;
+    money += clout*25;
+    money += core*50;
+
+    money += emerald*15;
+    money += sapphire*25;
+    money += ruby*40;
+    money += onyx*70;
+
+    iron=gold=clout=core=0;
+    emerald=sapphire=ruby=onyx=0;
+
     update();
 }
 
 // ===== 更新 =====
 function update(){
-    document.getElementById("dirt").textContent=dirt;
-    document.getElementById("dirt2").textContent=dirt;
+    let ids=["dirt","dirt2","iron","gold","clout","core",
+    "emeraldOre","sapphireOre","rubyOre","onyxOre",
+    "emerald","sapphire","ruby","onyx","money"];
 
-    document.getElementById("gold").textContent=gold;
-    document.getElementById("iron").textContent=iron;
-    document.getElementById("gem").textContent=gem;
-
-    document.getElementById("ingot").textContent=ingot;
-    document.getElementById("weapon").textContent=weapon;
-
-    document.getElementById("money").textContent=money;
+    ids.forEach(id=>{
+        if(window[id]!==undefined){
+            document.getElementById(id).textContent=window[id];
+        }
+    });
 }
 
 update();
